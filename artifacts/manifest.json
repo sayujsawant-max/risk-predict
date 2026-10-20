@@ -1,0 +1,17 @@
+{
+  "source": {
+    "file": "default of credit card clients.xls",
+    "source_page": "https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients",
+    "file_acquired": "2023-05-22T15:22:14",
+    "citation": "Yeh, I.-C. Default of Credit Card Clients. UCI Machine Learning Repository."
+  },
+  "random_seed": 42,
+  "split": "stratified 70/15/15 after de-duplication",
+  "python": "3.12.10",
+  "pandas": "3.0.6",
+  "numpy": "2.5.4",
+  "scikit_learn": "1.9.1",
+  "threshold_strategy": "max_f1",
+  "selected_model": "Random Forest",
+  "selected_threshold": 0.31
+}

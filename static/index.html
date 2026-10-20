@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Financial Risk Prediction</title>
+<meta name="description" content="Credit-card default risk prediction — educational machine-learning prototype.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f4fd1'/%3E%3Cpath d='M8 22l5-6 4 3 7-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<!-- Hide any AMD loader (some extensions inject one) so Chart.js registers as window.Chart -->
+<script>window.__amd = window.define; window.define = undefined;</script>
+<script src="chart.umd.min.js?v=4.4.1"></script>
+<script>window.define = window.__amd;</script>
+<style>
+/* ---------- Tokens ---------- */
+:root{
+  color-scheme:light;
+  --page:#f4f6f9; --surface:#ffffff; --surface-2:#f8f9fb; --surface-3:#eef1f5;
+  --ink:#0f1729; --ink-2:#475467; --muted:#667085;
+  --border:#e4e7ec; --border-strong:#d0d5dd; --grid:#edf0f3; --axis:#c3c8d0;
+  --brand:#1f4fd1; --brand-hover:#1a43b3; --brand-soft:#eaf0fd; --brand-ink:#1a3ea8;
+  --focus:rgba(31,79,209,.28);
+  --good:#0ca30c; --good-ink:#006300; --good-soft:#e7f6e7;
+  --bad:#d03b3b; --bad-ink:#a92828; --bad-soft:#fdeceb;
+  --warn-soft:#fff6e0; --warn-ink:#7a4d00; --warn-line:#f5d68b;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s7:#6250d6; --s8:#e34948;
+  --base-series:#98a2b3;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  --shadow-lg:0 12px 32px -8px rgba(16,24,40,.14);
+  --radius:14px; --radius-sm:10px;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --page:#0e1116; --surface:#171b22; --surface-2:#1c2129; --surface-3:#232933;
+    --ink:#eef0f3; --ink-2:#b8bec9; --muted:#8f97a4;
+    --border:#272d37; --border-strong:#353c48; --grid:#232831; --axis:#3a414d;
+    --brand:#4f7cf0; --brand-hover:#6a91f3; --brand-soft:#1c2740; --brand-ink:#9db7f7;
+    --focus:rgba(79,124,240,.35);
+    --good:#0ca30c; --good-ink:#4cc94c; --good-soft:#132a17;
+    --bad:#e05a5a; --bad-ink:#f08a8a; --bad-soft:#341a1c;
+    --warn-soft:#2c2412; --warn-ink:#f2c46b; --warn-line:#5a4519;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s7:#9085e9; --s8:#e66767;
+    --base-series:#6b7280;
+    --shadow-sm:none; --shadow:0 0 0 1px rgba(255,255,255,.02); --shadow-lg:0 12px 32px -8px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0e1116; --surface:#171b22; --surface-2:#1c2129; --surface-3:#232933;
+  --ink:#eef0f3; --ink-2:#b8bec9; --muted:#8f97a4;
+  --border:#272d37; --border-strong:#353c48; --grid:#232831; --axis:#3a414d;
+  --brand:#4f7cf0; --brand-hover:#6a91f3; --brand-soft:#1c2740; --brand-ink:#9db7f7;
+  --focus:rgba(79,124,240,.35);
+  --good:#0ca30c; --good-ink:#4cc94c; --good-soft:#132a17;
+  --bad:#e05a5a; --bad-ink:#f08a8a; --bad-soft:#341a1c;
+  --warn-soft:#2c2412; --warn-ink:#f2c46b; --warn-line:#5a4519;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s7:#9085e9; --s8:#e66767;
+  --base-series:#6b7280;
+  --shadow-sm:none; --shadow:0 0 0 1px rgba(255,255,255,.02); --shadow-lg:0 12px 32px -8px rgba(0,0,0,.5);
+}
+
+/* ---------- Base ---------- */
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font);font-size:15px;line-height:1.5;background:var(--page);color:var(--ink);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;letter-spacing:-.01em}
+a{color:var(--brand)}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.88em;background:var(--surface-3);padding:1px 6px;border-radius:5px}
+.num{font-variant-numeric:tabular-nums}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+:focus-visible{outline:none;box-shadow:0 0 0 3px var(--focus);border-radius:8px}
+.hidden{display:none!important}
+
+/* ---------- Top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--border)}
+.topbar-inner{max-width:1240px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);flex-shrink:0}
+.brand-mark{width:32px;height:32px;border-radius:9px;background:var(--brand);display:grid;place-items:center}
+.brand-name{font-weight:700;font-size:15px;line-height:1.15}
+.brand-sub{font-size:11.5px;color:var(--muted);font-weight:500}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1}
+.tabs::-webkit-scrollbar{display:none}
+.tab{appearance:none;border:0;background:none;color:var(--ink-2);font:inherit;font-size:14px;font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:background .15s,color .15s}
+.tab svg{opacity:.75}
+.tab:hover{background:var(--surface-3);color:var(--ink)}
+.tab.active{background:var(--brand-soft);color:var(--brand-ink)}
+.tab.active svg{opacity:1}
+.top-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.model-pill{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--border);padding:5px 11px;border-radius:999px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.live{background:var(--good);box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent)}
+.dot.off{background:var(--bad)}
+.icon-btn{appearance:none;width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--ink-2);display:grid;place-items:center;cursor:pointer}
+.icon-btn:hover{background:var(--surface-3);color:var(--ink)}
+@media(max-width:860px){
+  .topbar-inner{height:auto;flex-wrap:wrap;padding:10px 16px;gap:10px}
+  .tabs{order:3;flex-basis:100%;margin:0 -4px}
+  .brand-sub{display:none}.model-pill .pill-text{display:none}
+  .top-right{margin-left:auto}
+}
+
+/* ---------- Layout ---------- */
+main{max-width:1240px;margin:0 auto;padding:32px 24px 56px}
+@media(max-width:640px){main{padding:22px 16px 40px}}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-ink);margin-bottom:6px}
+.page-head h1{font-size:28px;font-weight:750;line-height:1.2}
+.page-head p{margin:8px 0 0;color:var(--ink-2);max-width:680px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;min-width:0}
+.card+.card{margin-top:20px}
+.grid>.card+.card{margin-top:0}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.card-head h2{font-size:17px;font-weight:700}
+.card-head p,.note{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+.note{margin-top:14px}
+.grid{display:grid;gap:20px}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cols-main{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);align-items:start}
+@media(max-width:980px){.cols-2,.cols-main{grid-template-columns:1fr}}
+.section{scroll-margin-top:130px;margin-top:20px}
+
+/* ---------- Controls ---------- */
+.btn{appearance:none;border:1px solid transparent;font:inherit;font-weight:600;font-size:14px;padding:10px 16px;border-radius:10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
+.btn-primary{background:var(--brand);color:#fff}
+.btn-primary:hover{background:var(--brand-hover)}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--border-strong)}
+.btn-ghost:hover{background:var(--surface-3)}
+.btn-lg{padding:13px 20px;font-size:15px;width:100%}
+.btn:disabled{opacity:.6;cursor:progress}
+.chip{appearance:none;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink-2);padding:6px 12px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip:hover{border-color:var(--brand);color:var(--brand-ink);background:var(--brand-soft)}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.field-label{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.input,.select{width:100%;font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--border-strong);border-radius:9px;padding:9px 11px;transition:border-color .15s,box-shadow .15s;font-variant-numeric:tabular-nums}
+.input:hover,.select:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--border-strong))}
+.input:focus,.select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--focus)}
+.input.invalid{border-color:var(--bad);box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 18%,transparent)}
+.affix{position:relative}
+.affix .input{padding-left:46px}
+.affix span{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:12.5px;font-weight:600;color:var(--muted);pointer-events:none}
+.select{appearance:none;padding-right:32px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center}
+.alert{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:11px 13px;font-size:13.5px;margin-top:14px}
+.alert-error{background:var(--bad-soft);color:var(--bad-ink);border:1px solid color-mix(in srgb,var(--bad) 30%,transparent)}
+.alert-warn{background:var(--warn-soft);color:var(--warn-ink);border:1px solid var(--warn-line)}
+.alert svg{flex-shrink:0;margin-top:1px}
+
+/* ---------- Assessment form ---------- */
+.form-top{display:grid;grid-template-columns:minmax(0,260px) 1fr;gap:16px;align-items:end;margin-bottom:22px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+@media(max-width:640px){.form-top{grid-template-columns:1fr}.presets{justify-content:flex-start}}
+.months-head,.month-row{display:grid;grid-template-columns:118px minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:center}
+.months-head{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:0 0 8px;border-bottom:1px solid var(--border)}
+.month-row{padding:9px 0;border-bottom:1px solid var(--border)}
+.month-row:last-child{border-bottom:0}
+.month-name{font-weight:600;font-size:14px}
+.month-name small{display:block;font-size:11.5px;font-weight:500;color:var(--muted)}
+.month-row .mlabel{display:none}
+@media(max-width:640px){
+  .months-head{display:none}
+  .month-row{grid-template-columns:1fr 1fr;gap:8px 10px;padding:14px 0}
+  .month-row .month-name{grid-column:1/-1}
+  .month-row .status-cell{grid-column:1/-1}
+  .month-row .mlabel{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:4px}
+}
+.form-foot{margin-top:20px}
+
+/* ---------- Result ---------- */
+.result{position:sticky;top:88px}
+.empty{text-align:center;padding:36px 12px;color:var(--muted)}
+.empty-icon{width:56px;height:56px;border-radius:16px;background:var(--surface-3);display:grid;place-items:center;margin:0 auto 14px;color:var(--ink-2)}
+.empty h3{color:var(--ink);font-size:16px;margin-bottom:6px}
+.empty p{margin:0 auto;max-width:280px;font-size:13.5px}
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;margin:4px 0 6px}
+.gauge{width:100%;max-width:280px;height:auto;display:block}
+.gauge-value{font-size:40px;font-weight:750;letter-spacing:-.02em;margin-top:-58px;line-height:1}
+.gauge-cap{font-size:12.5px;color:var(--muted);margin-top:6px}
+.verdict{display:flex;align-items:center;justify-content:center;gap:10px;margin:18px 0 6px;flex-wrap:wrap}
+.status{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:14px;padding:6px 13px 6px 10px;border-radius:999px;color:var(--ink)}
+.status.high{background:var(--bad-soft)}.status.high svg{color:var(--bad)}
+.status.low{background:var(--good-soft)}.status.low svg{color:var(--good)}
+.verdict-meta{font-size:12.5px;color:var(--muted)}
+.subhead{font-size:13px;font-weight:700;margin:22px 0 4px;color:var(--ink)}
+.subnote{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.drv{display:grid;grid-template-columns:minmax(0,150px) 1fr 62px;align-items:center;gap:10px;font-size:13px;padding:5px 0}
+.drv-name{color:var(--ink-2)}
+.drv-track{position:relative;height:10px;background:var(--surface-3);border-radius:5px}
+.drv-track::after{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--axis)}
+.drv-bar{position:absolute;top:0;height:100%}
+.drv-bar.up{background:var(--s8);border-radius:0 4px 4px 0}
+.drv-bar.down{background:var(--s1);border-radius:4px 0 0 4px}
+.drv-val{text-align:right;font-weight:600}
+.legend-inline{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.legend-inline i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+.tile-label{font-size:12px;color:var(--muted);font-weight:600}
+.tile-value{font-size:18px;font-weight:700;margin-top:2px}
+
+/* ---------- Stats / KPIs ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:20px}
+@media(max-width:980px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px}
+.kpi-label{font-size:12.5px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi-value{font-size:30px;font-weight:750;letter-spacing:-.02em;margin:6px 0 2px}
+.kpi-sub{font-size:12.5px;color:var(--muted)}
+.kpi-sub b{color:var(--ink-2);font-weight:600}
+.delta{display:inline-flex;align-items:center;gap:3px;font-weight:700;color:var(--good-ink)}
+
+/* ---------- Report ---------- */
+.subnav{position:sticky;top:64px;z-index:10;background:var(--page);padding:10px 0;margin:-6px 0 14px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.subnav::-webkit-scrollbar{display:none}
+.subnav a{font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);white-space:nowrap}
+.subnav a:hover{color:var(--brand-ink);border-color:var(--brand)}
+@media(max-width:860px){.subnav{top:104px}}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.fact{padding:14px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.fact:nth-child(3n){border-right:0}
+.fact:nth-last-child(-n+3){border-bottom:0}
+.fact dt{font-size:12px;color:var(--muted);font-weight:600}
+.fact dd{margin:3px 0 0;font-weight:700;font-size:15px}
+@media(max-width:640px){.facts{grid-template-columns:1fr 1fr}.fact:nth-child(3n){border-right:1px solid var(--border)}.fact:nth-child(2n){border-right:0}.fact:nth-last-child(-n+3){border-bottom:1px solid var(--border)}.fact:nth-last-child(-n+2){border-bottom:0}}
+.table-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:left;padding:0 12px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+th.r,td.r{text-align:right}
+tbody tr:hover td{background:var(--surface-2)}
+tr.selected td{background:color-mix(in srgb,var(--brand-soft) 70%,transparent)}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;vertical-align:0}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:8px;vertical-align:1px;letter-spacing:.02em}
+.tag-brand{background:var(--brand-soft);color:var(--brand-ink)}
+.tag-muted{background:var(--surface-3);color:var(--ink-2)}
+.ci{color:var(--muted);font-size:12.5px}
+.cm{display:grid;grid-template-columns:auto 1fr 1fr;gap:8px;font-size:13px}
+.cm .ax{display:flex;align-items:center;justify-content:center;color:var(--muted);font-weight:600;font-size:12px;text-align:center;padding:4px}
+.cm .ax.row{justify-content:flex-start;padding-right:8px}
+.cell{border-radius:var(--radius-sm);padding:14px;border:1px solid var(--border)}
+.cell .n{font-size:24px;font-weight:750;letter-spacing:-.01em}
+.cell .k{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px;margin-top:2px}
+.cell .p{font-size:12px;color:var(--muted)}
+.cell.ok{background:var(--good-soft)}.cell.ok .k svg{color:var(--good)}
+.cell.err{background:var(--bad-soft)}.cell.err .k svg{color:var(--bad)}
+.chartbox{position:relative;height:300px}
+.chartbox.tall{height:400px}
+.slider-row{display:flex;align-items:center;gap:16px;margin:4px 0 18px;flex-wrap:wrap}
+.slider-row input[type=range]{flex:1;min-width:200px;accent-color:var(--brand);height:24px}
+.thr-badge{font-size:22px;font-weight:750;min-width:64px}
+.mini-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}
+@media(max-width:640px){.mini-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bar-cell{display:flex;align-items:center;gap:10px;min-width:140px}
+.bar-cell .track{flex:1;height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden}
+.bar-cell .fill{height:100%;background:var(--ink-2);border-radius:3px}
+.bar-cell span{width:48px;text-align:right}
+
+/* ---------- Batch ---------- */
+.drop{display:block;border:1.5px dashed var(--border-strong);border-radius:var(--radius);background:var(--surface-2);padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+.drop-icon{width:48px;height:48px;border-radius:14px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;margin:0 auto 12px;color:var(--brand)}
+.drop strong{color:var(--brand-ink)}
+.drop p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.file-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
+.file-name{font-size:14px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.reqs{display:grid;gap:10px;font-size:13.5px;color:var(--ink-2)}
+.reqs div{display:flex;gap:10px}
+.reqs svg{flex-shrink:0;color:var(--brand);margin-top:2px}
+
+/* ---------- About ---------- */
+.prose p{color:var(--ink-2);margin:0 0 14px;line-height:1.65}
+.limits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media(max-width:640px){.limits{grid-template-columns:1fr}}
+.limit{border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;background:var(--surface-2)}
+.limit-icon{width:34px;height:34px;border-radius:10px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--brand);margin-bottom:10px}
+.limit h3{font-size:14.5px;margin-bottom:4px}
+.limit p{margin:0;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.glance dl{margin:0;display:grid;gap:0}
+.glance dl div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.glance dl div:last-child{border-bottom:0}
+.glance dt{color:var(--muted)}.glance dd{margin:0;font-weight:600;text-align:right}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0;display:grid;gap:12px}
+.steps li{counter-increment:s;display:flex;gap:12px;font-size:14px;color:var(--ink-2)}
+.steps li::before{content:counter(s);flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--brand-soft);color:var(--brand-ink);font-weight:700;font-size:12px;display:grid;place-items:center}
+
+/* ---------- Footer ---------- */
+footer{border-top:1px solid var(--border);background:var(--surface)}
+.foot{max-width:1240px;margin:0 auto;padding:20px 24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.skeleton{height:120px;border-radius:var(--radius);background:linear-gradient(90deg,var(--surface-3),var(--surface-2),var(--surface-3));background-size:200% 100%;animation:shimmer 1.2s infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<!-- Icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14"/><path d="m5 7-3 7a4 4 0 0 0 6 0z"/><path d="m19 7-3 7a4 4 0 0 0 6 0z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+</svg>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#predict" aria-label="Financial Risk Prediction home">
+      <span class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span>
+      <span><div class="brand-name">Financial Risk Prediction</div><div class="brand-sub">Credit default · educational prototype</div></span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab active" id="tab-predict" role="tab"><svg width="16" height="16"><use href="#i-gauge"/></svg>Assess risk</button>
+      <button class="tab" id="tab-batch" role="tab"><svg width="16" height="16"><use href="#i-upload"/></svg>Batch scoring</button>
+      <button class="tab" id="tab-report" role="tab"><svg width="16" height="16"><use href="#i-chart"/></svg>Model report</button>
+      <button class="tab" id="tab-about" role="tab"><svg width="16" height="16"><use href="#i-info"/></svg>About</button>
+    </nav>
+    <div class="top-right">
+      <span class="model-pill" id="status" title="Model status"><span class="dot" id="statusDot"></span><span class="pill-text" id="statusText">Connecting…</span></span>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode"><svg width="18" height="18"><use id="themeIcon" href="#i-moon"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main>
+<!-- ================= ASSESS ================= -->
+<section id="view-predict">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Single account</div>
+      <h1>Assess default risk</h1>
+      <p>Enter six months of credit-card history to estimate the chance this customer defaults on next month's payment.</p>
+    </div>
+  </div>
+  <div class="grid cols-main">
+    <div class="card">
+      <div class="form-top">
+        <div>
+          <label class="field-label" for="LIMIT_BAL">Credit limit</label>
+          <div class="affix"><span>NT$</span><input class="input" id="LIMIT_BAL" type="number" min="1" step="1000" value="200000" inputmode="numeric"></div>
+        </div>
+        <div class="presets">
+          <span class="field-label" style="width:100%;text-align:inherit;margin:0">Try an example</span>
+          <button class="chip" data-preset="steady"><svg width="14" height="14" style="color:var(--good)"><use href="#i-check"/></svg>Steady payer</button>
+          <button class="chip" data-preset="stressed"><svg width="14" height="14" style="color:var(--bad)"><use href="#i-alert"/></svg>Recent delays</button>
+          <button class="chip" data-preset="reset">Reset</button>
+        </div>
+      </div>
+      <div class="months-head"><span>Month</span><span>Repayment status</span><span>Bill statement (NT$)</span><span>Amount paid (NT$)</span></div>
+      <div id="months"></div>
+      <div class="form-foot">
+        <button class="btn btn-primary btn-lg" id="predictBtn">Assess risk</button>
+        <div id="formErr"></div>
+      </div>
+    </div>
+
+    <aside class="card result" id="resultCard" aria-live="polite">
+      <div class="empty">
+        <div class="empty-icon"><svg width="26" height="26"><use href="#i-gauge"/></svg></div>
+        <h3>No assessment yet</h3>
+        <p>Fill in the account history or load an example, then select <b>Assess risk</b>.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ================= BATCH ================= -->
+<section id="view-batch" class="hidden">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Many accounts</div>
+      <h1>Batch scoring</h1>
+      <p>Upload a CSV of accounts and get a default probability and risk label for every row.</p>
+    </div>
+    <a class="btn btn-ghost" href="/api/batch_template" download="risk_template.csv"><svg width="16" height="16"><use href="#i-download"/></svg>Template CSV</a>
+  </div>
+  <div class="grid cols-main">
+    <div class="card">
+      <label class="drop" id="drop" for="batchFile">
+        <div class="drop-icon"><svg width="22" height="22"><use href="#i-upload"/></svg></div>
+        <div><strong>Choose a CSV file</strong> or drag it here</div>
+        <p>Up to 20,000 rows · 5 MB</p>
+        <input id="batchFile" type="file" accept=".csv,text/csv" class="sr-only">
+      </label>
+      <div class="file-row">
+        <span class="file-name" id="fileName"><svg width="16" height="16"><use href="#i-file"/></svg>No file selected</span>
+        <button class="btn btn-primary" id="batchBtn">Score file</button>
+      </div>
+      <div id="batchErr"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>File requirements</h2></div></div>
+      <div class="reqs">
+        <div><svg width="16" height="16"><use href="#i-check"/></svg><span>19 input columns: <code>LIMIT_BAL</code>, <code>PAY_0</code>, <code>PAY_2</code>–<code>PAY_6</code>, <code>BILL_AMT1</code>–<code>6</code>, <code>PAY_AMT1</code>–<code>6</code>.</span></div>
+        <div><svg width="16" height="16"><use href="#i-check"/></svg><span>Optional <code>ref</code> column to identify rows in the results.</span></div>
+        <div><svg width="16" height="16"><use href="#i-check"/></svg><span>Other columns are ignored, so the original UCI / Kaggle CSV works as-is.</span></div>
+        <div><svg width="16" height="16"><use href="#i-lock"/></svg><span>Processed in memory and never stored on the server.</span></div>
+      </div>
+    </div>
+  </div>
+  <div id="batchOut"></div>
+</section>
+
+<!-- ================= REPORT ================= -->
+<section id="view-report" class="hidden"><div id="report"><div class="skeleton"></div></div></section>
+
+<!-- ================= ABOUT ================= -->
+<section id="view-about" class="hidden">
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Project</div>
+      <h1>About this project</h1>
+      <p>A self-learning project for <i>Foundations of Financial Systems and AI Applications</i> — Third Year B.Tech. AI &amp; Data Science, Shah and Anchor Kutchhi Engineering College.</p>
+    </div>
+  </div>
+  <div class="grid cols-main">
+    <div>
+      <div class="card prose">
+        <div class="card-head"><div><h2>How it works</h2></div></div>
+        <p>The system predicts whether a credit-card customer will default on next month's payment. It returns a low-risk or high-risk label together with an estimated probability, trained on 30,000 historical accounts from the UCI <i>Default of Credit Card Clients</i> dataset.</p>
+        <ol class="steps">
+          <li>Duplicate rows are removed, then data is split 70 / 15 / 15 into training, validation and test sets (stratified, seed 42).</li>
+          <li>Imputation and scaling are fitted on the training split only, so no information leaks from validation or test.</li>
+          <li>A majority-class baseline, Logistic Regression and Random Forest are tuned with 5-fold cross-validation. Gradient Boosting is trained as an extension for comparison.</li>
+          <li>The model and decision threshold are chosen on the validation split. The test split is used exactly once for the final figures.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <div class="card-head"><div><h2>Limitations</h2><p>Read these before interpreting any prediction.</p></div></div>
+        <div class="limits">
+          <div class="limit"><div class="limit-icon"><svg width="18" height="18"><use href="#i-clock"/></svg></div><h3>Old, foreign data</h3><p>Taiwanese credit-card accounts from 2005. Patterns may not hold for present-day or Indian borrowers.</p></div>
+          <div class="limit"><div class="limit-icon"><svg width="18" height="18"><use href="#i-database"/></svg></div><h3>Missing information</h3><p>No income, employment or loan amount, so no debt-to-income ratio. Only six months of behaviour.</p></div>
+          <div class="limit"><div class="limit-icon"><svg width="18" height="18"><use href="#i-target"/></svg></div><h3>Moderate accuracy</h3><p>It misses a substantial share of real defaults and also flags many customers who go on to pay.</p></div>
+          <div class="limit"><div class="limit-icon"><svg width="18" height="18"><use href="#i-link"/></svg></div><h3>Associations, not causes</h3><p>Feature importance and "what moved this estimate" describe statistical patterns, not reasons a person defaults.</p></div>
+          <div class="limit"><div class="limit-icon"><svg width="18" height="18"><use href="#i-scale"/></svg></div><h3>Fairness</h3><p>Sex, education, marital status and age are not model inputs; they are used only to compare error rates. Similar rates do not prove fairness.</p></div>
+          <div class="limit"><div class="limit-icon"><svg width="18" height="18"><use href="#i-lock"/></svg></div><h3>Privacy</h3><p>Uses public, de-identified data. Nothing entered or uploaded is stored by the server.</p></div>
+        </div>
+      </div>
+    </div>
+    <aside>
+      <div class="card glance">
+        <div class="card-head"><div><h2>At a glance</h2></div></div>
+        <dl id="glance">
+          <div><dt>Dataset</dt><dd>UCI #350</dd></div>
+          <div><dt>Task</dt><dd>Next-month default</dd></div>
+          <div><dt>Selected model</dt><dd id="g-model">–</dd></div>
+          <div><dt>Decision threshold</dt><dd id="g-thr">–</dd></div>
+          <div><dt>Test ROC-AUC</dt><dd id="g-auc">–</dd></div>
+          <div><dt>Interface</dt><dd>FastAPI + HTML/JS</dd></div>
+        </dl>
+      </div>
+      <div class="alert alert-warn" style="margin-top:20px"><svg width="18" height="18"><use href="#i-alert"/></svg><span><b>Educational demonstration.</b> Not financial advice or a lending decision. Must not be used to approve or reject real applicants.</span></div>
+    </aside>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="foot">
+    <span>Financial Risk Prediction · Sayuj Sawant, Parth Shinde, Yuvrajsingh Patil · SAKEC, 2026–27</span>
+    <span>Educational demonstration — not financial advice or a lending decision.</span>
+  </div>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const PAY = ["PAY_0","PAY_2","PAY_3","PAY_4","PAY_5","PAY_6"];
+const MONTHS = ["Sep","Aug","Jul","Jun","May","Apr"];
+const STATUS = [[-2,"No consumption"],[-1,"Paid in full"],[0,"Revolving (min. paid)"]]
+  .concat([1,2,3,4,5,6,7,8].map(n => [n, n===8 ? "Delayed 8+ months" : `Delayed ${n} month${n>1?"s":""}`]));
+const pct = (v,d=1) => v==null ? "–" : (v*100).toFixed(d)+"%";
+const num = (v,d=3) => v==null ? "–" : Number(v).toFixed(d);
+const money = v => "NT$ " + Math.round(Number(v)).toLocaleString();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const errText = j => typeof j.detail === "string" ? j.detail
+  : (j.detail || []).map(d => `${d.loc[d.loc.length-1]}: ${d.msg}`).join("; ");
+const icon = (id, s=16) => `<svg width="${s}" height="${s}"><use href="#i-${id}"/></svg>`;
+const alertBox = (kind, msg) => `<div class="alert alert-${kind}">${icon(kind==="error"?"x":"alert",18)}<span>${msg}</span></div>`;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- Theme ---------- */
+const store = {get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function isDark(){ const t = document.documentElement.dataset.theme; return t ? t==="dark" : matchMedia("(prefers-color-scheme: dark)").matches; }
+function applyTheme(t){ if (t) document.documentElement.dataset.theme = t; $("themeIcon").setAttribute("href", isDark() ? "#i-sun" : "#i-moon"); }
+applyTheme(store.get("theme"));
+$("themeBtn").onclick = () => { const t = isDark() ? "light" : "dark"; store.set("theme", t); applyTheme(t); rerenderCharts(); };
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { applyTheme(); rerenderCharts(); });
+
+/* ---------- Form ---------- */
+$("months").innerHTML = MONTHS.map((m,i) => `
+  <div class="month-row">
+    <div class="month-name">Month ${i+1}<small>${m} 2005${i===0?" · latest":""}</small></div>
+    <div class="status-cell"><span class="mlabel">Repayment status</span><select class="select" id="s${i}" aria-label="Month ${i+1} repayment status">${STATUS.map(([v,t]) => `<option value="${v}" ${v===0?"selected":""}>${t}</option>`).join("")}</select></div>
+    <div><span class="mlabel">Bill (NT$)</span><input class="input" id="b${i}" type="number" step="100" value="20000" inputmode="numeric" aria-label="Month ${i+1} bill statement"></div>
+    <div><span class="mlabel">Paid (NT$)</span><input class="input" id="p${i}" type="number" min="0" step="100" value="2000" inputmode="numeric" aria-label="Month ${i+1} amount paid"></div>
+  </div>`).join("");
+
+const PRESETS = {
+  steady:   {limit:200000, s:[-1,-1,0,0,-1,-1], b:[15000,18000,22000,20000,16000,14000], p:[18000,22000,4000,4000,14000,12000]},
+  stressed: {limit:50000,  s:[2,2,2,0,0,0],     b:[48500,47800,46200,45000,44100,43000], p:[0,0,1500,1700,1600,1600]},
+  reset:    {limit:200000, s:[0,0,0,0,0,0],     b:[20000,20000,20000,20000,20000,20000], p:[2000,2000,2000,2000,2000,2000]},
+};
+document.querySelectorAll("[data-preset]").forEach(btn => btn.onclick = () => {
+  const P = PRESETS[btn.dataset.preset];
+  $("LIMIT_BAL").value = P.limit;
+  for (let i=0;i<6;i++){ $(`s${i}`).value=P.s[i]; $(`b${i}`).value=P.b[i]; $(`p${i}`).value=P.p[i]; }
+  document.querySelectorAll(".input.invalid").forEach(e => e.classList.remove("invalid"));
+  $("formErr").innerHTML = "";
+});
+
+function readForm(){
+  const bad = [];
+  const val = (id, ok) => { const el = $(id), v = Number(el.value); const good = el.value !== "" && Number.isFinite(v) && ok(v);
+    el.classList.toggle("invalid", !good); if (!good) bad.push(el); return v; };
+  const body = {LIMIT_BAL: val("LIMIT_BAL", v => v > 0 && v <= 5e6)};
+  PAY.forEach((c,i) => {
+    body[c] = Number($(`s${i}`).value);
+    body[`BILL_AMT${i+1}`] = val(`b${i}`, v => v >= -1e6 && v <= 5e6);
+    body[`PAY_AMT${i+1}`] = val(`p${i}`, v => v >= 0 && v <= 5e6);
+  });
+  return {body, bad};
+}
+
+/* ---------- Tabs ---------- */
+const TABS = ["predict","batch","report","about"];
+let reportLoaded = false, METRICS = null;
+function showTab(t){
+  TABS.forEach(x => {
+    $(`view-${x}`).classList.toggle("hidden", x!==t);
+    $(`tab-${x}`).classList.toggle("active", x===t);
+    $(`tab-${x}`).setAttribute("aria-selected", x===t);
+  });
+  if (t==="report" && !reportLoaded) loadReport();
+  if (t==="about") fillGlance();
+}
+TABS.forEach(t => $(`tab-${t}`).onclick = () => { history.replaceState(null, "", "#"+t); showTab(t); window.scrollTo({top:0}); });
+document.querySelector(".brand").onclick = e => { e.preventDefault(); $("tab-predict").click(); };
+const initial = location.hash.slice(1);
+if (TABS.includes(initial)) showTab(initial);
+
+/* ---------- Health ---------- */
+fetch("/api/health").then(r=>r.json()).then(h => {
+  $("statusDot").className = "dot " + (h.model_loaded ? "live" : "off");
+  $("statusText").textContent = h.model_loaded ? `${h.model} · threshold ${h.threshold}` : "Model not trained";
+  $("status").title = h.model_loaded ? "Model loaded" : "Run python train.py";
+}).catch(() => { $("statusDot").className = "dot off"; $("statusText").textContent = "Server offline"; });
+
+/* ---------- Predict ---------- */
+function busy(btn, on, label){ btn.disabled = on; btn.innerHTML = on ? `<span class="spinner"></span>${label}` : btn.dataset.label; }
+$("predictBtn").dataset.label = "Assess risk";
+$("predictBtn").onclick = async () => {
+  $("formErr").innerHTML = "";
+  const {body, bad} = readForm();
+  if (bad.length) { $("formErr").innerHTML = alertBox("error", "Some values are missing or out of range. Check the highlighted fields."); bad[0].focus(); return; }
+  busy($("predictBtn"), true, "Assessing…");
+  try {
+    const r = await fetch("/api/predict", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    const j = await r.json();
+    if (!r.ok) { $("formErr").innerHTML = alertBox("error", esc(errText(j))); return; }
+    renderResult(j);
+    if (matchMedia("(max-width:980px)").matches) $("resultCard").scrollIntoView({behavior:"smooth", block:"start"});
+  } catch(e) { $("formErr").innerHTML = alertBox("error", "Could not reach the server. Is it running?"); }
+  finally { busy($("predictBtn"), false); }
+};
+
+function gaugeSVG(p, t, high){
+  const R = 80, cx = 100, cy = 96, L = Math.PI * R;
+  const pt = (f, r) => [cx - r*Math.cos(Math.PI*f), cy - r*Math.sin(Math.PI*f)];
+  const [x1,y1] = pt(t, R-15), [x2,y2] = pt(t, R+15), [lx,ly] = pt(t, R+27);
+  const col = high ? "var(--bad)" : "var(--good)";
+  return `<svg class="gauge" viewBox="0 0 200 112" role="img" aria-label="Default probability ${pct(p)}; threshold ${pct(t,0)}">
+    <path d="M${cx-R} ${cy} A${R} ${R} 0 0 1 ${cx+R} ${cy}" fill="none" stroke="var(--surface-3)" stroke-width="14" stroke-linecap="round"/>
+    <path d="M${cx-R} ${cy} A${R} ${R} 0 0 1 ${cx+R} ${cy}" fill="none" stroke="${col}" stroke-width="14" stroke-linecap="round"
+      stroke-dasharray="${Math.max(0.001,p)*L} ${L}" style="transition:stroke-dasharray .6s ease"/>
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="${lx}" y="${ly}" font-size="9" font-weight="600" fill="var(--muted)" text-anchor="middle" dominant-baseline="middle">${pct(t,0)}</text>
+  </svg>`;
+}
+
+function renderResult(j){
+  const high = j.class === 1, k = j.indicators;
+  const maxEff = Math.max(0.05, ...j.drivers.map(d => Math.abs(d.effect)));
+  const drivers = j.drivers.map(d => {
+    const w = Math.abs(d.effect)/maxEff*50, up = d.effect >= 0;
+    return `<div class="drv"><span class="drv-name">${d.group}</span>
+      <div class="drv-track"><div class="drv-bar ${up?"up":"down"}" style="${up?`left:50%`:`left:${50-w}%`};width:${w}%"></div></div>
+      <span class="drv-val num">${up?"+":"−"}${Math.abs(d.effect*100).toFixed(1)} pts</span></div>`;
+  }).join("");
+  $("resultCard").innerHTML = `
+    <div class="card-head" style="margin-bottom:6px"><div><h2>Assessment</h2><p>${j.model}</p></div></div>
+    <div class="gauge-wrap">
+      ${gaugeSVG(j.probability, j.threshold, high)}
+      <div class="gauge-value num">${pct(j.probability)}</div>
+      <div class="gauge-cap">estimated default probability</div>
+    </div>
+    <div class="verdict">
+      <span class="status ${high?"high":"low"}">${icon(high?"alert":"check",17)}${j.label}</span>
+      <span class="verdict-meta">${high?"at or above":"below"} the ${pct(j.threshold,0)} decision threshold</span>
+    </div>
+
+    <div class="subhead">What moved this estimate</div>
+    <p class="subnote">Change versus replacing each input group with a typical (training-median) value. Associations, not causes.</p>
+    ${drivers}
+    <div class="legend-inline"><span><i style="background:var(--s8)"></i>Raises risk</span><span><i style="background:var(--s1)"></i>Lowers risk</span></div>
+
+    <div class="subhead">Historical indicators</div>
+    <div class="tiles" style="margin-top:8px">
+      <div class="tile"><div class="tile-label">Months delayed</div><div class="tile-value num">${k.months_delayed} / 6</div></div>
+      <div class="tile"><div class="tile-label">Longest delay</div><div class="tile-value num">${k.max_delay_months} mo</div></div>
+      <div class="tile"><div class="tile-label">Utilisation (bill ÷ limit)</div><div class="tile-value num">${pct(k.utilisation_proxy,0)}</div></div>
+      <div class="tile"><div class="tile-label">Recent payment coverage</div><div class="tile-value num">${pct(k.recent_payment_coverage,0)}</div></div>
+      <div class="tile"><div class="tile-label">Average bill</div><div class="tile-value num">${money(k.avg_bill)}</div></div>
+      <div class="tile"><div class="tile-label">Average payment</div><div class="tile-value num">${money(k.avg_payment)}</div></div>
+    </div>
+    ${alertBox("warn", `${j.disclaimer} Trained on 2005 Taiwanese data.`)}`;
+}
+
+/* ---------- Charts: loading & shared styling ---------- */
+// Use the local copy; if it did not load, try the CDN once before giving up.
+const chartReady = typeof Chart !== "undefined" ? Promise.resolve(true) : new Promise(res => {
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+  s.onload = () => res(typeof Chart !== "undefined");
+  s.onerror = () => res(false);
+  const amd = window.define; window.define = undefined;
+  s.addEventListener("load", () => { window.define = amd; });
+  document.head.appendChild(s);
+});
+function chartError(id, msg){
+  const box = $(id) && $(id).parentElement;
+  if (box) box.innerHTML = `<div class="empty" style="padding:24px 12px">${icon("alert",22)}<h3 style="margin-top:8px">Chart could not be drawn</h3><p>${esc(msg)}</p></div>`;
+}
+const charts = {};
+function chart(id, cfg){
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  try { charts[id] = new Chart($(id), cfg); return charts[id]; }
+  catch (e) { console.error(`Chart ${id} failed:`, e); chartError(id, e.message || String(e)); return null; }
+}
+function chartDefaults(){
+  if (typeof Chart === "undefined") {
+    document.querySelectorAll(".chartbox canvas").forEach(c => chartError(c.id,
+      "The chart library did not load. Press Ctrl+F5 to reload; if that fails, try another browser or disable extensions for this page."));
+    return false;
+  }
+  Chart.defaults.font.family = css("--font");
+  Chart.defaults.font.size = 12;
+  Chart.defaults.color = css("--muted");
+  Chart.defaults.borderColor = css("--grid");
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.animation = {duration:350};
+  Chart.defaults.elements.line.borderWidth = 2;
+  Chart.defaults.elements.point.radius = 0;
+  Chart.defaults.elements.point.hoverRadius = 5;
+  Chart.defaults.elements.point.hoverBorderWidth = 2;
+  Chart.defaults.elements.point.hoverBorderColor = css("--surface");
+  Chart.defaults.elements.bar.borderRadius = 4;
+  Chart.defaults.plugins.legend.position = "top";
+  Chart.defaults.plugins.legend.align = "start";
+  Chart.defaults.plugins.legend.labels.boxWidth = 10;
+  Chart.defaults.plugins.legend.labels.boxHeight = 10;
+  Chart.defaults.plugins.legend.labels.useBorderRadius = true;
+  Chart.defaults.plugins.legend.labels.borderRadius = 3;
+  Chart.defaults.plugins.legend.labels.color = css("--ink-2");
+  Chart.defaults.plugins.legend.labels.padding = 14;
+  Object.assign(Chart.defaults.plugins.tooltip, {
+    backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink-2"),
+    borderColor: css("--border-strong"), borderWidth: 1, padding: 10, cornerRadius: 8,
+    boxWidth: 8, boxHeight: 8, usePointStyle: true, titleFont:{weight:"600"}, displayColors: true,
+  });
+  Chart.defaults.scale.grid.color = css("--grid");
+  Chart.defaults.scale.border.color = css("--axis");
+  Chart.defaults.scale.ticks.color = css("--muted");
+  Chart.defaults.scale.title.color = css("--ink-2");
+  return true;
+}
+// dashed vertical rule with a label, e.g. the decision threshold
+const vline = (getX, label) => ({id:"vline", afterDatasetsDraw(ch){
+  const x = ch.scales.x.getPixelForValue(getX()), a = ch.chartArea, g = ch.ctx;
+  if (!(x >= a.left && x <= a.right)) return;
+  g.save(); g.strokeStyle = css("--ink"); g.lineWidth = 1.5; g.setLineDash([4,4]);
+  g.beginPath(); g.moveTo(x, a.top); g.lineTo(x, a.bottom); g.stroke(); g.setLineDash([]);
+  if (label){ g.fillStyle = css("--ink"); g.font = `600 11px ${css("--font")}`; g.textAlign = x > a.right - 80 ? "right" : "left";
+    g.fillText(typeof label === "function" ? label() : label, x + (g.textAlign === "left" ? 6 : -6), a.top + 12); }
+  g.restore();
+}});
+const MODEL_VAR = {"Baseline (majority class)":"--base-series","Logistic Regression":"--s1","Random Forest":"--s2","Gradient Boosting":"--s3"};
+const modelColor = n => css(MODEL_VAR[n] || "--s7");
+function rerenderCharts(){
+  if (METRICS && reportLoaded) renderReport(METRICS);
+  if (batchResult) renderBatchChart(batchResult);
+}
+
+/* ---------- Batch ---------- */
+let batchResult = null;
+const drop = $("drop"), fileInput = $("batchFile");
+fileInput.onchange = () => showFile();
+["dragenter","dragover"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", ev => { if (ev.dataTransfer.files.length){ fileInput.files = ev.dataTransfer.files; showFile(); } });
+function showFile(){
+  const f = fileInput.files[0];
+  $("fileName").innerHTML = icon("file") + (f ? `${esc(f.name)} <span style="color:var(--muted)">· ${(f.size/1024).toFixed(0)} KB</span>` : "No file selected");
+  $("batchErr").innerHTML = "";
+}
+$("batchBtn").dataset.label = "Score file";
+$("batchBtn").onclick = async () => {
+  $("batchErr").innerHTML = "";
+  const f = fileInput.files[0];
+  if (!f) { $("batchErr").innerHTML = alertBox("error", "Choose a CSV file first."); return; }
+  const fd = new FormData(); fd.append("file", f);
+  busy($("batchBtn"), true, "Scoring…");
+  try {
+    const r = await fetch("/api/predict_batch", {method:"POST", body:fd});
+    const j = await r.json();
+    if (!r.ok) { $("batchErr").innerHTML = alertBox("error", esc(errText(j))); $("batchOut").innerHTML = ""; batchResult = null; return; }
+    batchResult = j; renderBatch(j);
+  } catch(e) { $("batchErr").innerHTML = alertBox("error", "Could not reach the server."); }
+  finally { busy($("batchBtn"), false); }
+};
+
+function renderBatch(j){
+  const s = j.summary, shown = j.rows.slice(0, 200);
+  $("batchOut").innerHTML = `
+  <div class="kpis" style="margin-top:20px">
+    <div class="kpi"><div class="kpi-label">Accounts scored</div><div class="kpi-value num">${s.n.toLocaleString()}</div><div class="kpi-sub">${j.model}</div></div>
+    <div class="kpi"><div class="kpi-label">${icon("alert",14)}Flagged high risk</div><div class="kpi-value num">${s.n_high.toLocaleString()}</div><div class="kpi-sub"><b>${pct(s.n_high/s.n)}</b> of accounts</div></div>
+    <div class="kpi"><div class="kpi-label">Mean default probability</div><div class="kpi-value num">${pct(s.mean_probability)}</div><div class="kpi-sub">across all rows</div></div>
+    <div class="kpi"><div class="kpi-label">Decision threshold</div><div class="kpi-value num">${pct(j.threshold,0)}</div><div class="kpi-sub">chosen on validation data</div></div>
+  </div>
+  <div class="grid cols-main">
+    <div class="card">
+      <div class="card-head"><div><h2>Scored accounts</h2><p>${j.rows.length > 200 ? `Showing the first 200 of ${j.rows.length.toLocaleString()} rows.` : `${j.rows.length} rows.`}</p></div>
+        <button class="btn btn-ghost" id="dlBtn">${icon("download")}Download CSV</button></div>
+      <div class="table-wrap" style="max-height:460px;overflow-y:auto">
+        <table><thead><tr><th>Ref</th><th class="r">Probability</th><th>Risk</th></tr></thead><tbody>
+        ${shown.map(x => { const h = x.label==="High risk"; return `<tr><td>${esc(x.ref)}</td><td class="r">${pct(x.probability)}</td>
+          <td><span class="status ${h?"high":"low"}" style="font-size:12.5px;padding:3px 10px 3px 7px">${icon(h?"alert":"check",14)}${x.label}</span></td></tr>`; }).join("")}
+        </tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Probability distribution</h2><p>Accounts per 5-point band. Dashed line = decision threshold.</p></div></div>
+      <div class="chartbox"><canvas id="histChart"></canvas></div>
+    </div>
+  </div>
+  ${alertBox("warn", j.disclaimer)}`;
+  $("dlBtn").onclick = () => {
+    const q = v => /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v;
+    const csv = "ref,default_probability,label\n" + batchResult.rows.map(x => `${q(x.ref)},${x.probability},${x.label}`).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"}));
+    a.download = "risk_scores.csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  renderBatchChart(j);
+}
+async function renderBatchChart(j){
+  await chartReady;
+  if (!$("histChart") || !chartDefaults()) return;
+  const bins = new Array(20).fill(0);
+  j.rows.forEach(x => bins[Math.min(19, Math.floor(x.probability*20))]++);
+  const labels = bins.map((_,i) => `${i*5}–${i*5+5}%`);
+  chart("histChart", {type:"bar",
+    data:{labels, datasets:[{label:"Accounts", data:bins, backgroundColor:css("--s1"), borderSkipped:"start", maxBarThickness:28, categoryPercentage:.9, barPercentage:.92}]},
+    options:{plugins:{legend:{display:false}, tooltip:{callbacks:{title:it => `Probability ${it[0].label}`}}},
+      scales:{x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:6}, title:{display:true,text:"Default probability"}},
+              y:{beginAtZero:true, ticks:{precision:0}, title:{display:true,text:"Accounts"}}}},
+    plugins:[vline(() => j.threshold*20 - 0.5, "threshold")]});
+}
+
+/* ---------- Report ---------- */
+async function loadReport(){
+  const r = await fetch("/api/metrics").catch(() => null);
+  if (!r || !r.ok) {
+    $("report").innerHTML = `<div class="card"><div class="empty"><div class="empty-icon">${icon("chart",26)}</div><h3>Metrics pending</h3><p>No experiment has been run yet. Run <code>python train.py</code>, then refresh this page.</p></div></div>`;
+    return;
+  }
+  METRICS = await r.json(); reportLoaded = true;
+  await chartReady;
+  renderReport(METRICS);
+}
+function fillGlance(){
+  const go = m => { $("g-model").textContent = m.selected_model; $("g-thr").textContent = m.selected_threshold; $("g-auc").textContent = num(m.test.selected_model.roc_auc); };
+  if (METRICS) return go(METRICS);
+  fetch("/api/metrics").then(r => r.ok ? r.json() : null).then(m => { if (m){ METRICS = m; go(m); } }).catch(()=>{});
+}
+
+function renderReport(m){
+  const sel = m.selected_model, ts = m.test.selected_model, tb = m.test.baseline, ci = m.test.selected_model_ci95 || {};
+  const cm = ts.confusion_matrix, d = m.data_report, names = Object.keys(m.models), N = cm.tn+cm.fp+cm.fn+cm.tp;
+  const ciTxt = (k, f) => ci[k] ? `${f(ci[k][0])} – ${f(ci[k][1])}` : "–";
+  const sw = n => `<span class="swatch" style="background:var(${MODEL_VAR[n]||"--s7"})"></span>`;
+
+  const rows = names.map(n => {
+    const v = m.models[n], s = v.validation_at_selected;
+    return `<tr class="${n===sel?"selected":""}"><td>${sw(n)}${n}${n===sel?'<span class="tag tag-brand">Selected</span>':""}${v.extension?'<span class="tag tag-muted">Extension</span>':""}</td>
+      <td class="r">${v.selected_threshold}</td><td class="r"><b>${num(s.pr_auc)}</b></td><td class="r">${num(s.roc_auc)}</td>
+      <td class="r">${pct(s.recall)}</td><td class="r">${pct(s.precision)}</td><td class="r">${num(s.f1)}</td><td class="r">${pct(s.accuracy)}</td></tr>`;
+  }).join("");
+  const testRows = [["Accuracy","accuracy",pct],["Precision (high-risk)","precision",pct],["Recall (high-risk)","recall",pct],["F1-score","f1",num],["ROC-AUC","roc_auc",num],["PR-AUC","pr_auc",num]]
+    .map(([lab,k,f]) => `<tr><td>${lab}</td><td class="r"><b>${f(ts[k])}</b></td><td class="r ci">${ciTxt(k,f)}</td><td class="r">${f(tb[k])}</td></tr>`).join("")
+    + `<tr><td>Brier score <span class="ci">(lower is better)</span></td><td class="r"><b>${num(ts.brier)}</b></td><td class="r ci">–</td><td class="r">${num(tb.brier)}</td></tr>`;
+  const bar = v => v==null ? "–" : `<div class="bar-cell"><div class="track"><div class="fill" style="width:${v*100}%"></div></div><span>${pct(v)}</span></div>`;
+  const groups = m.group_errors_test.map(g => `<tr><td>${g.attribute}</td><td>${g.group}${g.small_sample?' <span class="tag tag-muted">n&lt;100</span>':""}</td>
+    <td class="r">${g.n.toLocaleString()}</td><td class="r">${pct(g.default_rate)}</td><td class="r">${pct(g.flagged_rate)}</td><td>${bar(g.recall)}</td><td>${bar(g.false_positive_rate)}</td></tr>`).join("");
+  const cell = (cls, n, ic, k) => `<div class="cell ${cls}"><div class="n num">${n.toLocaleString()}</div><div class="k">${icon(ic,14)}${k}</div><div class="p num">${pct(n/N)} of test set</div></div>`;
+  const kpi = (lab, v, k, f, base) => `<div class="kpi"><div class="kpi-label">${lab}</div><div class="kpi-value num">${f(v)}</div>
+    <div class="kpi-sub">95% CI <b>${ciTxt(k,f)}</b></div><div class="kpi-sub">Baseline ${f(base)}</div></div>`;
+
+  $("report").innerHTML = `
+  <div class="page-head">
+    <div>
+      <div class="eyebrow">Evaluation</div>
+      <h1>Model report</h1>
+      <p>All figures come from the actual training run. The model and threshold were chosen on validation data; the test set was used once.</p>
+    </div>
+    <span class="model-pill">${icon("clock",14)}Generated ${new Date(m.generated_at).toLocaleString()}</span>
+  </div>
+
+  <nav class="subnav" aria-label="Report sections">
+    <a href="#r-summary">Summary</a><a href="#r-compare">Model comparison</a><a href="#r-test">Test result</a>
+    <a href="#r-threshold">Threshold</a><a href="#r-curves">ROC &amp; PR</a><a href="#r-calib">Calibration</a>
+    <a href="#r-explain">Explainability</a><a href="#r-fair">Fairness audit</a><a href="#r-data">Data</a>
+  </nav>
+
+  <div id="r-summary" class="section" style="margin-top:0">
+    <div class="kpis">
+      ${kpi("Test ROC-AUC", ts.roc_auc, "roc_auc", num, tb.roc_auc)}
+      ${kpi("Test PR-AUC", ts.pr_auc, "pr_auc", num, tb.pr_auc)}
+      ${kpi("Defaults caught (recall)", ts.recall, "recall", pct, tb.recall)}
+      ${kpi("Flag precision", ts.precision, "precision", pct, tb.precision)}
+    </div>
+  </div>
+
+  <div id="r-compare" class="card section">
+    <div class="card-head"><div><h2>Validation comparison</h2><p>Used for selection. Ranked by PR-AUC; each threshold maximises that model's validation F1.</p></div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Model</th><th class="r">Threshold</th><th class="r">PR-AUC</th><th class="r">ROC-AUC</th><th class="r">Recall</th><th class="r">Precision</th><th class="r">F1</th><th class="r">Accuracy</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <p class="note">"Extension" models go beyond the Stage One/Two proposal and are shown for comparison${m.select_from_extensions ? "" : " only; they are not eligible for selection"}.</p>
+  </div>
+
+  <div id="r-test" class="grid cols-2 section">
+    <div class="card">
+      <div class="card-head"><div><h2>Final test result</h2><p>${sel} at threshold ${m.selected_threshold} · ${m.splits.test.n.toLocaleString()} records</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Metric</th><th class="r">${sel}</th><th class="r">95% CI</th><th class="r">Baseline</th></tr></thead><tbody>${testRows}</tbody></table></div>
+      <p class="note">Confidence intervals from ${m.test.n_bootstrap || "–"} bootstrap resamples of the test set.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Confusion matrix</h2><p>Test set, ${N.toLocaleString()} records</p></div></div>
+      <div class="cm">
+        <div></div><div class="ax">Predicted low risk</div><div class="ax">Predicted high risk</div>
+        <div class="ax row">Actually<br>repaid</div>${cell("ok", cm.tn, "check", "Correctly cleared")}${cell("err", cm.fp, "x", "False alarm")}
+        <div class="ax row">Actually<br>defaulted</div>${cell("err", cm.fn, "x", "Missed default")}${cell("ok", cm.tp, "check", "Caught default")}
+      </div>
+      <p class="note">A missed default (false negative) means real risk goes unnoticed; a false alarm (false positive) means a good customer is flagged for review.</p>
+    </div>
+  </div>
+
+  <div id="r-threshold" class="card section">
+    <div class="card-head"><div><h2>Threshold explorer</h2><p>Validation set, ${sel}. Drag to see how the cutoff trades missed defaults against false alarms. The test result above uses the cutoff fixed beforehand.</p></div></div>
+    <div class="slider-row">
+      <span class="thr-badge num" id="thrVal"></span>
+      <input id="thrSlider" type="range" min="0" max="${m.models[sel].threshold_curve.length-1}" step="1" aria-label="Decision threshold">
+      <span id="thrNote"></span>
+    </div>
+    <div class="grid cols-2" style="align-items:start">
+      <div><div class="mini-stats" id="thrStats"></div><div class="chartbox"><canvas id="thrChart"></canvas></div></div>
+      <div class="cm" id="thrCm"></div>
+    </div>
+  </div>
+
+  <div id="r-curves" class="grid cols-2 section">
+    <div class="card"><div class="card-head"><div><h2>ROC curves</h2><p>Validation curves per model; dashed = selected model on test.</p></div></div><div class="chartbox"><canvas id="rocChart"></canvas></div></div>
+    <div class="card"><div class="card-head"><div><h2>Precision–recall curves</h2><p>Dotted grey line = default rate (random guessing).</p></div></div><div class="chartbox"><canvas id="prChart"></canvas></div></div>
+  </div>
+
+  <div id="r-calib" class="grid cols-2 section">
+    <div class="card"><div class="card-head"><div><h2>Calibration</h2><p>Test set, ${sel}. Points on the diagonal mean predicted probabilities match observed default rates.</p></div></div>
+      <div class="chartbox"><canvas id="calChart"></canvas></div>
+      <p class="note">Each point is one tenth of test records grouped by predicted probability. Brier score ${num(ts.brier)} vs baseline ${num(tb.brier)}.</p></div>
+    <div id="r-explain" class="card" style="scroll-margin-top:130px"><div class="card-head"><div><h2>Permutation importance</h2><p>Validation set, ${sel}. Drop in PR-AUC when a feature is shuffled.</p></div></div>
+      <div class="chartbox"><canvas id="impChart"></canvas></div>
+      <p class="note">Correlated features share credit, so related fields may each look smaller.</p></div>
+  </div>
+
+  <div class="card section">
+    <div class="card-head"><div><h2>Logistic Regression coefficients</h2><p>Standardised: change in log-odds of default per one standard deviation, other features held fixed.</p></div>
+      <div class="legend-inline"><span><i style="background:var(--s8)"></i>Raises risk</span><span><i style="background:var(--s1)"></i>Lowers risk</span></div></div>
+    <div class="chartbox tall"><canvas id="coefChart"></canvas></div>
+    <p class="note">Correlated inputs (such as the six monthly delay fields) can split or flip signs, so read related features together.</p>
+  </div>
+
+  <div id="r-fair" class="card section">
+    <div class="card-head"><div><h2>Group-level error audit</h2><p>Test set. Demographics are not model inputs; they are used only here to compare error rates.</p></div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Attribute</th><th>Group</th><th class="r">n</th><th class="r">Default rate</th><th class="r">Flagged</th><th>Recall</th><th>False-positive rate</th></tr></thead>
+      <tbody>${groups}</tbody></table></div>
+    <p class="note">Groups marked n&lt;100 are too small to interpret reliably. Differences are descriptive, not a complete fairness test.</p>
+  </div>
+
+  <div id="r-data" class="card section">
+    <div class="card-head"><div><h2>Data</h2><p>UCI Default of Credit Card Clients. Demographic fields (${m.model_inputs_exclude.join(", ")}) are excluded from model inputs.</p></div></div>
+    <dl class="facts">
+      <div class="fact"><dt>Records (raw)</dt><dd class="num">${d.rows.toLocaleString()}</dd></div>
+      <div class="fact"><dt>Duplicates removed</dt><dd class="num">${d.duplicates_removed ?? "–"}</dd></div>
+      <div class="fact"><dt>Default rate</dt><dd class="num">${pct(d.default_rate)}</dd></div>
+      <div class="fact"><dt>Missing cells</dt><dd class="num">${d.missing_cells}</dd></div>
+      <div class="fact"><dt>Train / validation / test</dt><dd class="num">${m.splits.train.n.toLocaleString()} / ${m.splits.validation.n.toLocaleString()} / ${m.splits.test.n.toLocaleString()}</dd></div>
+      <div class="fact"><dt>Repayment codes</dt><dd class="num">${d.pay_status_codes_found.join(", ")}</dd></div>
+    </dl>
+  </div>`;
+
+  // keep sub-nav links from changing the tab hash
+  document.querySelectorAll(".subnav a").forEach(a => a.onclick = e => { e.preventDefault(); document.querySelector(a.getAttribute("href")).scrollIntoView({behavior:"smooth"}); });
+
+  // Threshold explorer (stats and matrix work even without Chart.js)
+  const curve = m.models[sel].threshold_curve, slider = $("thrSlider");
+  const selIdx = curve.findIndex(c => Math.abs(c.t - m.selected_threshold) < 1e-9);
+  slider.value = selIdx >= 0 ? selIdx : Math.round(curve.length/2);
+  const hasCharts = chartDefaults();
+  let thrChart = null;
+  const updateThr = () => {
+    const c = curve[+slider.value], n = c.tn+c.fp+c.fn+c.tp;
+    $("thrVal").textContent = c.t.toFixed(2);
+    const isSel = Math.abs(c.t - m.selected_threshold) < 1e-9;
+    $("thrNote").innerHTML = isSel ? '<span class="tag tag-brand" style="margin:0">Selected cutoff</span>' : (c.t === 0.5 ? '<span class="tag tag-muted" style="margin:0">Default 0.5</span>' : "");
+    $("thrStats").innerHTML = [["Recall",pct(c.recall)],["Precision",c.tp+c.fp ? pct(c.precision) : "–"],["F1",num(c.f1)],["Accuracy",pct(c.accuracy)],["Flagged",pct(c.flagged_rate)]]
+      .map(([k,v]) => `<div class="tile"><div class="tile-label">${k}</div><div class="tile-value num">${v}</div></div>`).join("");
+    const cl = (cls, v, ic, k) => `<div class="cell ${cls}"><div class="n num">${v.toLocaleString()}</div><div class="k">${icon(ic,14)}${k}</div><div class="p num">${pct(v/n)}</div></div>`;
+    $("thrCm").innerHTML = `<div></div><div class="ax">Predicted low</div><div class="ax">Predicted high</div>
+      <div class="ax row">Repaid</div>${cl("ok",c.tn,"check","Correctly cleared")}${cl("err",c.fp,"x","False alarm")}
+      <div class="ax row">Defaulted</div>${cl("err",c.fn,"x","Missed default")}${cl("ok",c.tp,"check","Caught default")}`;
+    if (thrChart) thrChart.draw();
+  };
+  slider.oninput = updateThr;
+  if (!hasCharts) { updateThr(); return; }
+
+  const lineOpts = (xTitle, yTitle, extra={}) => ({interaction:{mode:"index", intersect:false},
+    scales:{x:{type:"linear", min:0, max:1, title:{display:true,text:xTitle}, ticks:{maxTicksLimit:6}},
+            y:{min:0, max:1, title:{display:true,text:yTitle}, ticks:{maxTicksLimit:6}}},
+    plugins:{tooltip:{callbacks:{label:c => ` ${c.dataset.label}: ${num(c.parsed.y)}`}}}, ...extra});
+  const xy = (xs, ys) => xs.map((x,i) => ({x, y:ys[i]}));
+
+  thrChart = chart("thrChart", {type:"line",
+    data:{datasets:[
+      {label:"Recall", data:xy(curve.map(c=>c.t), curve.map(c=>c.recall)), borderColor:css("--s7"), backgroundColor:css("--s7")},
+      {label:"Precision", data:xy(curve.map(c=>c.t), curve.map(c=>c.tp+c.fp ? c.precision : null)), borderColor:css("--s5"), backgroundColor:css("--s5")},
+      {label:"F1", data:xy(curve.map(c=>c.t), curve.map(c=>c.f1)), borderColor:css("--s4"), backgroundColor:css("--s4")}]},
+    options:lineOpts("Threshold", "Score", {scales:{x:{type:"linear",min:curve[0].t,max:curve[curve.length-1].t,title:{display:true,text:"Threshold"},ticks:{maxTicksLimit:8}},y:{min:0,max:1,ticks:{maxTicksLimit:6}}}}),
+    plugins:[vline(() => curve[+slider.value].t)]});
+  updateThr();
+
+  // ROC / PR
+  const vc = n => m.models[n].validation_curves, tc = m.test.curves;
+  const modelLine = n => ({borderColor:modelColor(n), backgroundColor:modelColor(n), borderWidth:n===sel?2.5:1.75});
+  const testLine = {borderColor:css("--ink"), backgroundColor:css("--ink"), borderDash:[6,4], borderWidth:1.5};
+  chart("rocChart", {type:"line", data:{datasets:[
+      ...names.map(n => ({label:n, data:xy(vc(n).roc.fpr, vc(n).roc.tpr), ...modelLine(n)})),
+      {label:`${sel} (test)`, data:xy(tc.roc.fpr, tc.roc.tpr), ...testLine}]},
+    options:lineOpts("False-positive rate", "True-positive rate (recall)")});
+  const base = m.splits.validation.default_rate;
+  chart("prChart", {type:"line", data:{datasets:[
+      ...names.filter(n => vc(n) && n !== names[0]).map(n => ({label:n, data:xy(vc(n).pr.recall, vc(n).pr.precision), ...modelLine(n)})),
+      {label:`${sel} (test)`, data:xy(tc.pr.recall, tc.pr.precision), ...testLine},
+      {label:"Default rate", data:[{x:0,y:base},{x:1,y:base}], borderColor:css("--base-series"), backgroundColor:css("--base-series"), borderDash:[2,4], borderWidth:1.5, pointHoverRadius:0}]},
+    options:lineOpts("Recall", "Precision", {interaction:{mode:"nearest", axis:"x", intersect:false}})});
+
+  // Calibration
+  const cal = m.calibration_test, cmax = Math.min(1, Math.ceil((Math.max(...cal.mean_predicted, ...cal.observed_default_rate) + 0.05) * 10) / 10);
+  chart("calChart", {type:"line", data:{datasets:[
+      {label:"Perfect calibration", data:[{x:0,y:0},{x:cmax,y:cmax}], borderColor:css("--base-series"), borderDash:[4,4], borderWidth:1.5, pointHoverRadius:0},
+      {label:sel, data:xy(cal.mean_predicted, cal.observed_default_rate), borderColor:modelColor(sel), backgroundColor:modelColor(sel),
+       pointRadius:5, pointHoverRadius:7, pointBorderColor:css("--surface"), pointBorderWidth:2}]},
+    options:{interaction:{mode:"nearest", intersect:false},
+      scales:{x:{type:"linear",min:0,max:cmax,title:{display:true,text:"Mean predicted probability"},ticks:{callback:v=>pct(v,0)}},
+              y:{min:0,max:cmax,title:{display:true,text:"Observed default rate"},ticks:{callback:v=>pct(v,0)}}},
+      plugins:{tooltip:{filter:c => c.datasetIndex===1, callbacks:{label:c => ` predicted ${pct(c.parsed.x)} → observed ${pct(c.parsed.y)}`}}}}});
+
+  // Importance (single series: the selected model's color)
+  const imp = m.permutation_importance_validation.slice(0,12);
+  chart("impChart", {type:"bar", data:{labels:imp.map(i=>i.feature),
+    datasets:[{label:"Mean PR-AUC drop", data:imp.map(i=>i.mean), backgroundColor:modelColor(sel), borderSkipped:"start", maxBarThickness:18}]},
+    options:{indexAxis:"y", plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => ` PR-AUC drop ${num(c.parsed.x,4)} (± ${num(imp[c.dataIndex].std,4)})`}}},
+      scales:{x:{beginAtZero:true, ticks:{maxTicksLimit:6}}, y:{grid:{display:false}, ticks:{color:css("--ink-2")}}}}});
+
+  // LR coefficients: diverging blue (lowers) <-> red (raises)
+  const co = (m.lr_coefficients || []).slice(0,15);
+  chart("coefChart", {type:"bar", data:{labels:co.map(c=>c.feature),
+    datasets:[{label:"Coefficient", data:co.map(c=>c.coef), backgroundColor:co.map(c=>c.coef>=0 ? css("--s8") : css("--s1")), borderSkipped:"start", maxBarThickness:18}]},
+    options:{indexAxis:"y", plugins:{legend:{display:false}, tooltip:{callbacks:{label:c => ` ${c.parsed.x>=0?"raises":"lowers"} risk · ${num(c.parsed.x)}`}}},
+      scales:{x:{ticks:{maxTicksLimit:8}, grid:{color:ctx => ctx.tick.value===0 ? css("--axis") : css("--grid")}}, y:{grid:{display:false}, ticks:{color:css("--ink-2")}}}}});
+}
+</script>
+</body>
+</html>

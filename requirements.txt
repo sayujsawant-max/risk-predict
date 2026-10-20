@@ -1,0 +1,15 @@
+# Exact versions: artifacts/model.joblib was trained with these and may not load under others.
+pandas==3.0.6
+numpy==2.5.4
+scikit-learn==1.9.1
+scipy==1.18.1
+joblib==1.6.0
+xlrd==2.0.2
+openpyxl==3.1.5
+fastapi==0.152.0
+starlette==1.9.0
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+python-multipart==0.0.32
+pytest==9.1.1
+httpx==0.28.1
